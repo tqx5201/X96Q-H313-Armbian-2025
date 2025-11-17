@@ -1,10 +1,10 @@
-name: Build Armbian X96Q H313 (Bullseye Minimal) && Release
+name: Build Armbian X96Q H313 (Bullseye Minimal) & Release
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # 允许创建/更新 release
+  contents: write   # 允许创建 release
 
 jobs:
   build:
@@ -33,29 +33,31 @@ jobs:
         cp -r userpatches/*         build/userpatches/     || true
         chmod +x build/userpatches/customize-image.sh || true
 
-    - name: Build Armbian
+    - name: Build Armbian (use pre-built rootfs to bypass binfmt)
       working-directory: build
       run: |
         export DEBIAN_FRONTEND=noninteractive
         ./compile.sh \
           BOARD=x96q-h313 BRANCH=current RELEASE=bullseye \
           BUILD_DESKTOP=no BUILD_MINIMAL=yes \
-          KERNEL_ONLY=no KERNEL_CONFIGURE=no
+          KERNEL_ONLY=no KERNEL_CONFIGURE=no \
+          SKIP_BOOTSPLASH=yes SHARE_LOG=yes \
+          USE_PREBUILT_ROOTFS=yes \
+          ROOTFS_TYPE=bullseye-current
 
-    # ---- 以下为新内容：发布到 Release ----
-    - name: 打包镜像
+    - name: Pack images
       run: |
         cd build/output/images
         tar -czf ../../../armbian-x96q-h313-bullseye-minimal.tar.gz *.img
       shell: bash
 
-    - name: 生成 tag 名称
+    - name: Generate tag
       id: tag
       run: |
         TAG="v$(date +%Y%m%d)-$(git rev-parse --short HEAD)"
         echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-    - name: 创建 Release 并上传镜像
+    - name: Create Release & Upload asset
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.tag.outputs.tag }}
